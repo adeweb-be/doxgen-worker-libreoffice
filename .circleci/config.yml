@@ -1,0 +1,25 @@
+version: 2.1
+orbs:
+  docker: circleci/docker@1.4.0
+
+workflows:
+  release-build:
+    jobs:
+      - docker/publish:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^v.*/
+          context: Adeweb-context
+          image: doxgen/worker
+          registry: docker.adeweb.dev
+          tag: $CIRCLE_TAG,latest-stable
+
+  master-build:
+    jobs:
+      - docker/publish:
+          context: Adeweb-context
+          image: doxgen/worker
+          registry: docker.adeweb.dev
+          tag: latest
