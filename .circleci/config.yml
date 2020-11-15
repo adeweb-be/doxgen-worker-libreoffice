@@ -12,7 +12,7 @@ workflows:
             tags:
               only: /^v.*/
           context: Adeweb-context
-          image: doxgen/worker
+          image: doxgen/worker-libreoffice
           registry: docker.adeweb.dev
           tag: $CIRCLE_TAG,latest-stable
 
