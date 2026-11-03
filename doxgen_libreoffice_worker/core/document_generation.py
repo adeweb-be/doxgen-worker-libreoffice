@@ -25,6 +25,27 @@ def generate(template_path, generation_context, destination_path):
     renderer.run()
 
 
+async def read_body(receive):
+    body = b""
+    more_body = True
+    while more_body:
+        message = await receive()
+        body += message.get("body", b"")
+        more_body = message.get("more_body", False)
+    return body
+
+
+async def send_failure(send, error):
+    await send(response_header('json', 500))
+    return await send(
+        {
+            "type": "http.response.body",
+            "body": bytes(json.dumps({"status": "failure", "error": error}), "utf-8"),
+            "more_body": False,
+        }
+    )
+
+
 GENERATION_LOCK = asyncio.Lock()
 
 
@@ -32,39 +53,22 @@ async def document_generation_view(scope, receive, send):
     if scope["method"] != "POST":
         return await handle_404(scope, receive, send)
 
-    received = await receive()
-    payload = json.loads(received["body"].decode("utf-8"))
+    payload = json.loads((await read_body(receive)).decode("utf-8"))
     template_path = payload["template_path"]
     generation_context = payload["generation_context"]
     destination_path = payload["destination_path"]
-    try:
-        await GENERATION_LOCK.acquire()
-        await asyncio.wait_for(
-            generate(template_path, generation_context, destination_path),
-            timeout=int(os.getenv("GENERATION_TIMEOUT", default=120)),
-        )
-    except TimeoutError as e:
-        # LibreOffice is probably stuck
-        Health.state = "unhealthy"
-        await send(response_header('json', 500))
-        return await send(
-            {
-                "type": "http.response.body",
-                "body": bytes(json.dumps({"status": "failure", "error": e}), "utf-8"),
-                "more_body": False,
-            }
-        )
-    except PodError as e:
-        await send(response_header('json', 500))
-        return await send(
-            {
-                "type": "http.response.body",
-                "body": bytes(json.dumps({"status": "failure", "error": e}), "utf-8"),
-                "more_body": False,
-            }
-        )
-    finally:
-        GENERATION_LOCK.release()
+    async with GENERATION_LOCK:
+        try:
+            await asyncio.wait_for(
+                generate(template_path, generation_context, destination_path),
+                timeout=int(os.getenv("GENERATION_TIMEOUT", default=120)),
+            )
+        except TimeoutError:
+            # LibreOffice is probably stuck
+            Health.state = "unhealthy"
+            return await send_failure(send, "Generation timed out")
+        except PodError as e:
+            return await send_failure(send, str(e))
 
     await send(response_header('json', 200))
     return await send(
