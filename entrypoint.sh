@@ -1,4 +1,4 @@
 #!/bin/sh
 fc-cache -f
-soffice "--accept=socket,host=0,port=2002;urp;" -env:UserInstallation=file:///tmp/lo-profile --nologo --headless --norestore --nofirststartwizard &
+soffice "--accept=socket,host=127.0.0.1,port=2002;urp;" -env:UserInstallation=file:///tmp/lo-profile --nologo --headless --norestore --nofirststartwizard &
 exec gunicorn -k uvicorn_worker.UvicornWorker -c uvicorn_conf.py  doxgen_libreoffice_worker.server:main
