@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> This repository is archived. doxgen-worker-libreoffice now lives in the doxgen monorepo,
+> [adeweb-be/doxgen](https://github.com/adeweb-be/doxgen) (private), in `workers/libreoffice/`.
+> Its full history is kept there.
+
 # doxgen-worker
 
 ## Security
